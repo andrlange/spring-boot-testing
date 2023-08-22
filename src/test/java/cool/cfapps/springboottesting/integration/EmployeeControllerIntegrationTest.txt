@@ -1,0 +1,211 @@
+package cool.cfapps.springboottesting.integration;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import cool.cfapps.springboottesting.dto.CreateEmployeeDto;
+import cool.cfapps.springboottesting.dto.EmployeeDto;
+import cool.cfapps.springboottesting.entity.Employee;
+import cool.cfapps.springboottesting.repository.EmployeeRepository;
+import org.junit.jupiter.api.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
+
+import java.util.List;
+
+import static org.hamcrest.CoreMatchers.is;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
+@TestMethodOrder(MethodOrderer.OrderAnnotation.class)
+public class EmployeeControllerIntegrationTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private EmployeeRepository employeeRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @BeforeEach
+    public void setUp() {
+        employeeRepository.deleteAll();
+    }
+
+    // Integration Test for createEmployee method
+    @Test
+    @Order(1)
+    @DisplayName("Integration Test for createEmployee method")
+    public void givenEmployeeDto_whenCreateEmployee_thenReturnCreatedEmployeeDto() throws Exception {
+        // given - precondition ot setup
+        CreateEmployeeDto createEmployeeDto = CreateEmployeeDto.builder()
+                .firstName("John")
+                .lastName("Doe")
+                .email("john.doe@gmail.com")
+                .build();
+
+
+        // when - action or the behaviour that we are going to test
+        ResultActions response = mockMvc.perform(post("/api/v1/employees")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(createEmployeeDto)));
+
+        // then - verify the output
+        response.andDo(print())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.firstName", is(createEmployeeDto.getFirstName())))
+                .andExpect(jsonPath("$.lastName", is(createEmployeeDto.getLastName())))
+                .andExpect(jsonPath("$.email", is(createEmployeeDto.getEmail())));
+    }
+
+    // Integration Test for Get All Employees method
+    @Test
+    @Order(2)
+    @DisplayName("Integration Test for Get All Employees method")
+    public void givenListOfEmployees_whenCallGetAllEmployees_thenReturnAllEmployees() throws Exception {
+        // given - precondition ot setup
+        List<Employee> employeeDtoList = List.of(
+                Employee.builder()
+                        .firstName("John")
+                        .lastName("Doe")
+                        .email("john.doe@gmail.com")
+                        .build(),
+                Employee.builder()
+                        .firstName("Jane")
+                        .lastName("Doe")
+                        .email("jane.doe@gmail.com")
+                        .build()
+        );
+
+        employeeRepository.saveAll(employeeDtoList);
+
+
+        // when - action or the behaviour that we are going to test
+        ResultActions response = mockMvc.perform(get("/api/v1/employees"));
+
+        // then - verify the output
+        response.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.size()", is(employeeDtoList.size())))
+                .andExpect(jsonPath("$[0].firstName", is(employeeDtoList.get(0).getFirstName())))
+                .andExpect(jsonPath("$[0].lastName", is(employeeDtoList.get(0).getLastName())))
+                .andExpect(jsonPath("$[0].email", is(employeeDtoList.get(0).getEmail())))
+                .andExpect(jsonPath("$[1].firstName", is(employeeDtoList.get(1).getFirstName())))
+                .andExpect(jsonPath("$[1].lastName", is(employeeDtoList.get(1).getLastName())))
+                .andExpect(jsonPath("$[1].email", is(employeeDtoList.get(1).getEmail())));
+    }
+
+    // Integration Test for Get Employee By Id method
+    @Test
+    @Order(3)
+    @DisplayName("Integration Test for Get Employee By Id method")
+    public void givenEmployeeDto_whenCallGetEmployeeById_thenReturnEmployeeDto() throws Exception {
+        // given - precondition ot setup
+        Employee employee = Employee.builder()
+                .firstName("John")
+                .lastName("Doe")
+                .email("john.doe@gmail.com")
+                .build();
+
+        employeeRepository.save(employee);
+
+        // Positive Scenario
+        // when - action or the behaviour that we are going to test
+        ResultActions response100 = mockMvc.perform(get("/api/v1/employees/{id}",employee.getId()));
+
+        // then - verify the output
+        response100.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstName", is(employee.getFirstName())))
+                .andExpect(jsonPath("$.lastName", is(employee.getLastName())))
+                .andExpect(jsonPath("$.email", is(employee.getEmail())));
+
+        // Negative Scenario
+        // when - action or the behaviour that we are going to test
+        ResultActions response99999999 = mockMvc.perform(get("/api/v1/employees/99999999"));
+
+        // then - verify the output
+        response99999999.andDo(print())
+                .andExpect(status().isNotFound());
+
+    }
+
+    // Integration Test for Update Employee method
+    @Test
+    @Order(4)
+    @DisplayName("Integration Test for Update Employee method")
+    public void givenEmployeeDto_whenUpdateEmployee_thenReturnUpdatedEmployeeDto() throws Exception {
+        // given - precondition ot setup
+        Employee employee = Employee.builder()
+                .firstName("John")
+                .lastName("Doe")
+                .email("john.doe@gmail.com")
+                .build();
+
+
+        employeeRepository.save(employee);
+
+
+        // when - action or the behaviour that we are going to test
+        ResultActions response1 = mockMvc.perform(get("/api/v1/employees/{id}",employee.getId()));
+
+        // then - verify the output
+        response1.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstName", is(employee.getFirstName())))
+                .andExpect(jsonPath("$.lastName", is(employee.getLastName())))
+                .andExpect(jsonPath("$.email", is(employee.getEmail())));
+
+        // when - action or the behaviour that we are going to test
+
+        EmployeeDto updatedEmployeeDto = EmployeeDto.builder()
+                .id(employee.getId())
+                .firstName(employee.getFirstName())
+                .lastName(employee.getLastName())
+                .email("jonny@gmail.com")
+                .build();
+
+        ResultActions response2 = mockMvc.perform(put("/api/v1/employees")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(updatedEmployeeDto)));
+
+        // then - verify the output
+        response2.andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.firstName", is(updatedEmployeeDto.getFirstName())))
+                .andExpect(jsonPath("$.lastName", is(updatedEmployeeDto.getLastName())))
+                .andExpect(jsonPath("$.email", is(updatedEmployeeDto.getEmail())));
+
+    }
+
+    // Integration Test for Delete Employee method
+    @Test
+    @Order(5)
+    @DisplayName("Integration Test for Delete Employee method")
+    public void givenEmployeeDto_whenDeleteEmployee_thenReturnNoContent() throws Exception {
+        // given - precondition ot setup
+        Employee employee = Employee.builder()
+                .firstName("John")
+                .lastName("Doe")
+                .email("john.doe@gmail.com")
+                .build();
+
+
+        employeeRepository.save(employee);
+
+        // when - action or the behaviour that we are going to test
+        ResultActions response = mockMvc.perform(delete("/api/v1/employees/{id}", employee.getId()));
+
+        // then - verify the output
+        response.andDo(print())
+                .andExpect(status().isOk());
+    }
+}
